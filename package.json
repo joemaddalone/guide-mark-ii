@@ -23,7 +23,7 @@
   "scripts": {
     "dev": "bun run --watch src/index.ts",
     "start": "bun run src/index.ts",
-    "build": "bun build ./src/index.ts --outdir ./dist --minify --target bun",
+    "build": "bun build ./src/index.ts --outdir ./dist --minify --target node && printf '%s\n' '#!/usr/bin/env node' | cat - dist/index.js > dist/index.tmp && mv dist/index.tmp dist/index.js",
     "lint": "bunx biome check src/",
     "format": "bunx biome format src/",
     "test": "bun test",
@@ -44,5 +44,4 @@
     "glob": "^13.0.6",
     "zod": "^4.4.3"
   }
-}
 }
