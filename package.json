@@ -1,9 +1,17 @@
 {
   "name": "guide-mark-ii",
   "version": "0.0.0-development",
-  "module": "src/index.ts",
-  "bin": "src/cli.ts",
+  "description": "CLI tool for measuring LLM inference performance against any OpenAI-compatible server",
+  "author": "joemaddalone",
+  "license": "MIT",
   "type": "module",
+  "main": "dist/index.js",
+  "bin": {
+    "guide-mark-ii": "dist/index.js"
+  },
+  "files": [
+    "dist"
+  ],
   "homepage": "https://github.com/joemaddalone/guide-mark-ii#readme",
   "bugs": {
     "url": "https://github.com/joemaddalone/guide-mark-ii/issues"
@@ -26,6 +34,7 @@
     "@semantic-release/changelog": "^6.0.3",
     "@semantic-release/git": "^10.0.1",
     "@semantic-release/github": "^12.0.9",
+    "@semantic-release/npm": "^13.1.5",
     "@types/bun": "^1.3.14",
     "semantic-release": "^25.0.8",
     "typescript": "^5.9.0"
@@ -35,4 +44,5 @@
     "glob": "^13.0.6",
     "zod": "^4.4.3"
   }
+}
 }
