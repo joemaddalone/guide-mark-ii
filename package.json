@@ -1,6 +1,6 @@
 {
   "name": "guide-mark-ii",
-  "version": "0.0.0-development",
+  "version": "1.0.0",
   "description": "CLI tool for measuring LLM inference performance against any OpenAI-compatible server",
   "author": "joemaddalone",
   "license": "MIT",
