@@ -1,6 +1,6 @@
 # Guide Mark II
 
-TypeScript port of mlx-chronos benchmark suite for measuring LLM inference performance against any OpenAI-compatible server on Apple Silicon.
+TypeScript port of [mlx-chronos](https://github.com/ml-explore/mlx-chronos) with less restrictive usage. A Benchmark suite for measuring LLM inference performance against any OpenAI-compatible server on Apple Silicon.
 
 ## Features
 
