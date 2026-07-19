@@ -8,7 +8,7 @@ honor its STOP conditions, and update your row when done.
 
 | Plan | Title | Priority | Effort | Depends on | Status |
 |------|-------|----------|--------|------------|--------|
-| 003 | Dead code cleanup | P1 | S | — | TODO |
+| 003 | Dead code cleanup | P1 | S | — | DONE |
 | 001 | Wire httpRetry into engine HTTP paths | P1 | M | — | DONE |
 | 002 | Fix resource leaks and silent degradation | P1 | S | — | DONE |
 | 004 | Add schema and reporter tests | P1 | M | — | DONE |

@@ -183,6 +183,9 @@ async function sampleCurrentSystemRam(): Promise<[number, number]> {
 			vmPagesizeProc.stdout.text(),
 		]);
 
+		memsizeProc.kill();
+		vmPagesizeProc.kill();
+
 		const totalBytes = parseInt(memsizeOutput.trim(), 10);
 		const pageSize = parseInt(pageSizeOutput.trim(), 10);
 
@@ -195,6 +198,7 @@ async function sampleCurrentSystemRam(): Promise<[number, number]> {
 			stderr: "pipe",
 		});
 		const vmStatOutput = await vmStat.stdout.text();
+		vmStat.kill();
 
 		let activePages = 0;
 		let wiredPages = 0;
@@ -213,6 +217,7 @@ async function sampleCurrentSystemRam(): Promise<[number, number]> {
 		const percent = totalBytes > 0 ? (usedBytes / totalBytes) * 100 : 0.0;
 		return [usedBytes / 1024 ** 3, percent];
 	} catch {
+		console.warn("System RAM snapshot fallback failed; returning zero values");
 		return [0.0, 0.0];
 	}
 }
