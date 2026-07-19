@@ -207,11 +207,7 @@ export class JSONReporter extends BaseReporter {
 }
 
 export class MarkdownReporter extends BaseReporter {
-	save(result: BenchmarkResultDict, resultsDir: string): string {
-		mkdirSync(resultsDir, { recursive: true });
-		const filename = `${this._generateBaseFilename(result)}.md`;
-		const outputPath = path.join(resultsDir, filename);
-
+	generate(result: BenchmarkResultDict): string {
 		const hw = result.hardware;
 		const metrics = result.metrics;
 		const meta = result.meta ?? ({} as BenchmarkMeta);
@@ -377,6 +373,14 @@ export class MarkdownReporter extends BaseReporter {
 			}
 		}
 
+		return md;
+	}
+
+	save(result: BenchmarkResultDict, resultsDir: string): string {
+		mkdirSync(resultsDir, { recursive: true });
+		const filename = `${this._generateBaseFilename(result)}.md`;
+		const outputPath = path.join(resultsDir, filename);
+		const md = this.generate(result);
 		writeTextAtomic(outputPath, md);
 		return outputPath;
 	}

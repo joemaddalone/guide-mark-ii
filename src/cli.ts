@@ -1,6 +1,8 @@
 import { Command } from "commander";
 import { readFileSync, statSync, existsSync, mkdirSync } from "node:fs";
 import { join, resolve } from "node:path";
+import { Marked } from "marked";
+import { markedTerminal } from "marked-terminal";
 import { globSync } from "glob";
 import {
 	runBenchmark,
@@ -304,12 +306,21 @@ async function cmdRun(options: {
 		reporters.push(["markdown", new MarkdownReporter()]);
 	}
 
-	for (const [, reporter] of reporters) {
-		const path = reporter.save(result, resultsDir);
-		console.log(`Result saved to: ${path}`);
+	const marked = new Marked();
+	// marked-terminal types are outdated; the function returns a MarkedExtension
+	marked.use(markedTerminal() as Parameters<typeof marked.use>[number]);
+
+	for (const [format, reporter] of reporters) {
+		const filePath = reporter.save(result, resultsDir);
+		console.log(`Result saved to: ${filePath}`);
+
+		if (format === "markdown") {
+			const md = (reporter as MarkdownReporter).generate(result);
+			console.log(`\n${marked.parse(md)}`);
+		}
 	}
 
-	console.log("\nDone.");
+	console.log("Done.");
 }
 
 export function main(): void {
