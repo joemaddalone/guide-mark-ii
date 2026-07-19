@@ -31,10 +31,4 @@ describe("constants", () => {
 		expect(protocol.ttft_cold.prompts).toHaveLength(5);
 		expect(protocol.throughput.prompts).toHaveLength(5);
 	});
-
-	it("throws on invalid connection mode", () => {
-		expect(() =>
-			buildBenchmarkProtocol(5, 100, null, "baseline", "invalid"),
-		).toThrow("connection_mode must be one of");
-	});
 });

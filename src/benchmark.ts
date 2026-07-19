@@ -1,7 +1,6 @@
 import {
 	CACHED_TTFT_PROMPT,
 	COLD_PROMPTS,
-	CONNECTION_MODE_PERSISTENT,
 	DEFAULT_RAM_SAMPLE_INTERVAL,
 	DEFAULT_THERMAL_SAMPLE_INTERVAL,
 	DEFAULT_THROUGHPUT_MAX_TOKENS,
@@ -12,7 +11,6 @@ import {
 	TOKEN_COUNT_SOURCE_MIXED,
 	TOKEN_COUNT_SOURCE_USAGE,
 	TOKEN_COUNT_SOURCE_WORD_FALLBACK,
-	VALID_CONNECTION_MODES,
 	WARMUP_MAX_TOKENS,
 	WARMUP_PROMPT,
 	buildBenchmarkProtocol,
@@ -28,7 +26,6 @@ import {
 import {
 	BenchmarkResultSchema,
 	normalizeModelQuantization,
-	normalizeModelReferenceUrl,
 	type BenchmarkProfile,
 } from "./schema";
 import type { BenchmarkResultDict } from "./reporters";
@@ -340,9 +337,7 @@ export interface RunBenchmarkOptions {
 	engineName?: string;
 	modelName?: string;
 	modelQuantization?: string;
-	modelReferenceUrl?: string | null;
 	trials?: number;
-	notes?: string | null;
 	ramSampleInterval?: number;
 	throughputMaxTokens?: number;
 	throughputMinTokens?: number | null;
@@ -350,7 +345,6 @@ export interface RunBenchmarkOptions {
 	elapsedSinceLastBenchmarkSeconds?: number | null;
 	cooldownSeconds?: number | null;
 	progressSampleIntervalTokens?: number | null;
-	connectionMode?: string;
 }
 
 export async function runBenchmark(
@@ -361,9 +355,7 @@ export async function runBenchmark(
 		engineName = "generic",
 		modelName = "",
 		modelQuantization: modelQuantizationInput = "4bit",
-		modelReferenceUrl: modelReferenceUrlInput = null,
 		trials = DEFAULT_TRIALS,
-		notes = null,
 		ramSampleInterval = DEFAULT_RAM_SAMPLE_INTERVAL,
 		throughputMaxTokens = DEFAULT_THROUGHPUT_MAX_TOKENS,
 		throughputMinTokens = null,
@@ -371,7 +363,6 @@ export async function runBenchmark(
 		elapsedSinceLastBenchmarkSeconds = null,
 		cooldownSeconds = null,
 		progressSampleIntervalTokens = null,
-		connectionMode = CONNECTION_MODE_PERSISTENT,
 	} = options;
 
 	let modelQuantization = modelQuantizationInput;
@@ -421,17 +412,11 @@ export async function runBenchmark(
 	) {
 		throw new Error("progress_sample_interval_tokens must be at least 1");
 	}
-	if (!VALID_CONNECTION_MODES.has(connectionMode)) {
-		throw new Error(
-			`connection_mode must be one of ${[...VALID_CONNECTION_MODES].sort().join(", ")}`,
-		);
-	}
 
 	const trimmedModelName = modelName.trim();
 	if (!trimmedModelName) {
 		throw new Error("model name must not be empty");
 	}
-	const modelReferenceUrl = normalizeModelReferenceUrl(modelReferenceUrlInput);
 
 	if (trials < 3) {
 		console.warn(
@@ -446,7 +431,6 @@ export async function runBenchmark(
 	console.log(`  Model  : ${trimmedModelName} (${modelQuantization})`);
 	console.log(`  Profile: ${benchmarkProfile}`);
 	console.log(`  Trials : ${trials}`);
-	console.log(`  HTTP   : ${connectionMode}`);
 	const tokenRange =
 		throughputMinTokens !== null
 			? `${throughputMinTokens}-${throughputMaxTokens}`
@@ -555,10 +539,6 @@ export async function runBenchmark(
 	let ramIsProcessRss = false;
 
 	try {
-		if (connectionMode === CONNECTION_MODE_PERSISTENT) {
-			console.log("Using one persistent HTTP client for benchmark requests.");
-		}
-
 		// Warmup phase — 2 calls with the throughput prompt, not recorded
 		await thermalTracker.setPhase("warmup");
 		await recordPhase(phaseTimings, "warmup", async () => {
@@ -571,9 +551,7 @@ export async function runBenchmark(
 						WARMUP_MAX_TOKENS,
 						undefined,
 						false,
-						connectionMode === CONNECTION_MODE_PERSISTENT
-							? { fetch }
-							: undefined,
+						{ fetch },
 					);
 				} catch (exc) {
 					warmupFailures++;
@@ -618,13 +596,7 @@ export async function runBenchmark(
 				const coldPrompt = COLD_PROMPTS[i] ?? "";
 				console.log(`  Cold trial ${i + 1}/${trials} (unique prompt)...`);
 				ttftColdTrials.push(
-					await engine.measureTTFT(
-						coldPrompt,
-						trimmedModelName,
-						connectionMode === CONNECTION_MODE_PERSISTENT
-							? { fetch }
-							: undefined,
-					),
+					await engine.measureTTFT(coldPrompt, trimmedModelName, { fetch }),
 				);
 			}
 		});
@@ -633,11 +605,9 @@ export async function runBenchmark(
 		await recordPhase(phaseTimings, "cache_priming", async () => {
 			console.log("\nPriming cache for cached TTFT measurement...");
 			try {
-				await engine.measureTTFT(
-					CACHED_TTFT_PROMPT,
-					trimmedModelName,
-					connectionMode === CONNECTION_MODE_PERSISTENT ? { fetch } : undefined,
-				);
+				await engine.measureTTFT(CACHED_TTFT_PROMPT, trimmedModelName, {
+					fetch,
+				});
 			} catch (exc) {
 				throw new Error(
 					`cache priming failed; cached TTFT cannot be measured reliably: ${exc}`,
@@ -652,13 +622,9 @@ export async function runBenchmark(
 			for (let i = 0; i < trials; i++) {
 				console.log(`  Cached trial ${i + 1}/${trials} (fixed prompt)...`);
 				ttftCachedTrials.push(
-					await engine.measureTTFT(
-						CACHED_TTFT_PROMPT,
-						trimmedModelName,
-						connectionMode === CONNECTION_MODE_PERSISTENT
-							? { fetch }
-							: undefined,
-					),
+					await engine.measureTTFT(CACHED_TTFT_PROMPT, trimmedModelName, {
+						fetch,
+					}),
 				);
 			}
 		});
@@ -677,9 +643,7 @@ export async function runBenchmark(
 						throughputMinTokens ?? undefined,
 						progressSampleIntervalTokens ?? undefined,
 						true,
-						connectionMode === CONNECTION_MODE_PERSISTENT
-							? { fetch }
-							: undefined,
+						{ fetch },
 					),
 				);
 				tpsTrials.push(measurement.request_tokens_per_second);
@@ -842,7 +806,6 @@ export async function runBenchmark(
 	const modelMetadata: Record<string, unknown> = {
 		name: trimmedModelName,
 		quantization: modelQuantization,
-		reference_url: modelReferenceUrl,
 	};
 	if (modelFormat) {
 		modelMetadata.format = modelFormat;
@@ -918,10 +881,8 @@ export async function runBenchmark(
 				throughputMaxTokens,
 				throughputMinTokens,
 				benchmarkProfile,
-				connectionMode,
 				false,
 			),
-			notes: notes,
 		},
 	};
 

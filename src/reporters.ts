@@ -54,7 +54,6 @@ type BenchmarkProtocol = {
 	throughput?: {
 		requested_max_tokens?: number;
 		requested_min_tokens?: number | null;
-		connection_mode?: string;
 	};
 };
 
@@ -73,7 +72,6 @@ type BenchmarkMeta = {
 	sustained_throttling_warning?: boolean;
 	cached_ttft_warning?: boolean;
 	elapsed_since_last_benchmark_seconds?: number;
-	notes?: string;
 };
 
 type BenchmarkHardware = {
@@ -94,7 +92,6 @@ type BenchmarkEngine = {
 type BenchmarkModel = {
 	name: string;
 	quantization: string;
-	reference_url?: string | null;
 };
 
 type BenchmarkMetrics = {
@@ -223,10 +220,6 @@ export class MarkdownReporter extends BaseReporter {
 		let md = "# mlx-chronos Benchmark Result\n\n";
 		md += `**Engine:** ${result.engine.name} (${result.engine.version})\n`;
 		md += `**Model:** ${result.model.name} (${result.model.quantization})\n`;
-		const modelReferenceUrl = result.model?.reference_url;
-		if (modelReferenceUrl) {
-			md += `**Model reference:** ${modelReferenceUrl}\n`;
-		}
 		md += "\n";
 		md += "## Run\n";
 		md += `- **Timestamp:** ${this._formatTimestamp(meta.timestamp)}\n`;
@@ -244,7 +237,6 @@ export class MarkdownReporter extends BaseReporter {
 				const minTokens = throughputProtocol.requested_min_tokens;
 				const minTokensLabel = minTokens == null ? "none" : minTokens;
 				md += `- **Throughput token bounds:** max ${throughputProtocol.requested_max_tokens ?? "unknown"}, min ${minTokensLabel}\n`;
-				md += `- **HTTP connection mode:** ${this._formatOptional(throughputProtocol.connection_mode)}\n`;
 			}
 		}
 		if (meta.word_fallback_warning) {
@@ -383,11 +375,6 @@ export class MarkdownReporter extends BaseReporter {
 					.join(", ");
 				md += `- **Trial ${index + 1}:** ${renderedSamples}\n`;
 			}
-		}
-
-		const notes = meta.notes;
-		if (notes) {
-			md += `\n## Notes\n${notes}\n`;
 		}
 
 		writeTextAtomic(outputPath, md);

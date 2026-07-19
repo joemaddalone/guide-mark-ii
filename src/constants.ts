@@ -32,12 +32,6 @@ export const RAM_MEASUREMENT_PROCESS_RSS = "process_rss";
 export const RAM_MEASUREMENT_SYSTEM_FALLBACK = "system_fallback";
 
 export const BASELINE_PROTOCOL_VERSION = "3";
-export const CONNECTION_MODE_PER_REQUEST = "per_request";
-export const CONNECTION_MODE_PERSISTENT = "persistent";
-export const VALID_CONNECTION_MODES = new Set([
-	CONNECTION_MODE_PER_REQUEST,
-	CONNECTION_MODE_PERSISTENT,
-]);
 export const TTFT_MAX_TOKENS = 1;
 export const WARMUP_MAX_TOKENS = 30;
 
@@ -131,7 +125,6 @@ export interface ProtocolPhase {
 	requested_min_tokens: number | null;
 	request_mode: string | null;
 	stream_usage_requested: boolean | null;
-	connection_mode: string;
 	generation_parameters: GenerationParameters;
 	input_tokens: number[] | null;
 	input_token_count_source: string;
@@ -141,7 +134,6 @@ export function protocolPhase(
 	prompts: string[],
 	requestedMaxTokens: number,
 	options: {
-		connectionMode: string;
 		requestedMinTokens?: number | null;
 		requestMode?: string | null;
 		streamUsageRequested?: boolean | null;
@@ -153,7 +145,6 @@ export function protocolPhase(
 		requested_min_tokens: options.requestedMinTokens ?? null,
 		request_mode: options.requestMode ?? null,
 		stream_usage_requested: options.streamUsageRequested ?? null,
-		connection_mode: options.connectionMode,
 		generation_parameters: generationParameters(),
 		input_tokens: null,
 		input_token_count_source: "unavailable",
@@ -174,29 +165,20 @@ export function buildBenchmarkProtocol(
 	throughputMaxTokens: number,
 	throughputMinTokens: number | null,
 	name: string = "baseline",
-	connectionMode: string = CONNECTION_MODE_PERSISTENT,
 	warmupStreamUsageRequested: boolean = true,
 ): BenchmarkProtocol {
-	if (!VALID_CONNECTION_MODES.has(connectionMode)) {
-		throw new Error(
-			`connection_mode must be one of ${[...VALID_CONNECTION_MODES].sort().join(", ")}`,
-		);
-	}
 	return {
 		name,
 		version: BASELINE_PROTOCOL_VERSION,
 		warmup: protocolPhase([WARMUP_PROMPT], WARMUP_MAX_TOKENS, {
-			connectionMode,
 			requestMode: "streaming",
 			streamUsageRequested: warmupStreamUsageRequested,
 		}),
 		ttft_cold: protocolPhase(COLD_PROMPTS.slice(0, trials), TTFT_MAX_TOKENS, {
-			connectionMode,
 			requestMode: "streaming",
 			streamUsageRequested: false,
 		}),
 		ttft_cached: protocolPhase([CACHED_TTFT_PROMPT], TTFT_MAX_TOKENS, {
-			connectionMode,
 			requestMode: "streaming",
 			streamUsageRequested: false,
 		}),
@@ -204,7 +186,6 @@ export function buildBenchmarkProtocol(
 			THROUGHPUT_PROMPTS.slice(0, trials),
 			throughputMaxTokens,
 			{
-				connectionMode,
 				requestedMinTokens: throughputMinTokens,
 				requestMode: "streaming",
 				streamUsageRequested: true,

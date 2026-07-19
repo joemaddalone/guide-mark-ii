@@ -9,7 +9,6 @@ import {
 	BENCHMARK_PROFILE_SUSTAINED,
 } from "./benchmark";
 import {
-	CONNECTION_MODE_PERSISTENT,
 	DEFAULT_RAM_SAMPLE_INTERVAL,
 	DEFAULT_THROUGHPUT_MAX_TOKENS,
 	MAX_TRIALS,
@@ -191,16 +190,13 @@ async function cmdRun(options: {
 	url: string;
 	engine?: string;
 	model: string;
-	modelUrl?: string;
 	trials?: number;
 	profile?: string;
-	notes?: string;
 	ramSampleInterval?: number;
 	maxTokens?: number;
 	minTokens?: number;
 	format?: string;
 	cooldownSeconds?: number;
-	connectionMode?: string;
 	outputDir?: string;
 }): Promise<void> {
 	const { profile, trials, maxTokens } = resolveProfileDefaults({
@@ -210,7 +206,6 @@ async function cmdRun(options: {
 	});
 	const cooldownSeconds = options.cooldownSeconds ?? 0.0;
 	const minTokens = options.minTokens;
-	const connectionMode = options.connectionMode ?? CONNECTION_MODE_PERSISTENT;
 	const url = options.url;
 	const engineName = options.engine ?? "generic";
 
@@ -282,9 +277,7 @@ async function cmdRun(options: {
 			baseUrl: url,
 			engineName,
 			modelName: options.model,
-			modelReferenceUrl: options.modelUrl ?? null,
 			trials,
-			notes: options.notes ?? null,
 			ramSampleInterval:
 				options.ramSampleInterval ?? DEFAULT_RAM_SAMPLE_INTERVAL,
 			throughputMaxTokens: maxTokens,
@@ -293,7 +286,6 @@ async function cmdRun(options: {
 			elapsedSinceLastBenchmarkSeconds: elapsedSinceLast,
 			cooldownSeconds,
 			progressSampleIntervalTokens,
-			connectionMode,
 		});
 	} catch (exc: unknown) {
 		const message = exc instanceof Error ? exc.message : String(exc);
@@ -346,10 +338,6 @@ export function main(): void {
 			"Model name exactly as shown in the engine (e.g. 'Qwen3.5-4B-OptiQ-4bit')",
 		)
 		.option(
-			"--model-url <url>",
-			"Reference URL for the model used in this run.",
-		)
-		.option(
 			"--trials <number>",
 			`Number of trials per metric (default: ${DEFAULT_TRIALS}; sustained profile default: ${SUSTAINED_TRIALS}; max: ${MAX_TRIALS})`,
 			Number,
@@ -359,7 +347,6 @@ export function main(): void {
 			`Benchmark profile. 'sustained' defaults to one long throughput trial with max_tokens=${SUSTAINED_THROUGHPUT_MAX_TOKENS} and progress samples every ${SUSTAINED_PROGRESS_SAMPLE_INTERVAL_TOKENS} tokens (default: baseline).`,
 			BENCHMARK_PROFILE_BASELINE,
 		)
-		.option("--notes <notes>", "Optional notes to include in the result JSON.")
 		.option(
 			"--ram-sample-interval <seconds>",
 			`Seconds between diagnostic engine RSS and system RAM samples (default: ${DEFAULT_RAM_SAMPLE_INTERVAL})`,
@@ -384,11 +371,6 @@ export function main(): void {
 			0.0,
 		)
 		.option(
-			"--connection-mode <mode>",
-			`HTTP connection behavior for benchmark requests. persistent reuses one client across the run; per_request opens requests independently (default: persistent).`,
-			CONNECTION_MODE_PERSISTENT,
-		)
-		.option(
 			"--output-dir <dir>",
 			"Directory for result files (default: ./results/local)",
 		)
@@ -397,16 +379,13 @@ export function main(): void {
 				url: opts.url as string,
 				engine: opts.engine as string | undefined,
 				model: opts.model as string,
-				modelUrl: opts.modelUrl as string | undefined,
 				trials: opts.trials as number | undefined,
 				profile: opts.profile as string | undefined,
-				notes: opts.notes as string | undefined,
 				ramSampleInterval: opts.ramSampleInterval as number | undefined,
 				maxTokens: opts.maxTokens as number | undefined,
 				minTokens: opts.minTokens as number | undefined,
 				format: opts.format as string | undefined,
 				cooldownSeconds: opts.cooldownSeconds as number | undefined,
-				connectionMode: opts.connectionMode as string | undefined,
 				outputDir: opts.outputDir as string | undefined,
 			});
 		});

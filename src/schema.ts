@@ -47,27 +47,6 @@ const percentFloat = z.number().min(0).max(100);
 const probabilityFloat = z.number().min(0).max(1);
 const temperatureFloat = z.number().min(0).max(2);
 
-export function normalizeModelReferenceUrl(
-	value: string | null,
-): string | null {
-	if (value === null) return null;
-	if (typeof value !== "string") {
-		throw new Error("model reference URL must be a string");
-	}
-	const normalized = value.trim();
-	if (!normalized) return null;
-
-	try {
-		const parsed = new URL(normalized);
-		if (!["http:", "https:"].includes(parsed.protocol)) {
-			throw new Error("model reference URL must be an http(s) URL");
-		}
-		return normalized;
-	} catch {
-		throw new Error("model reference URL must be an http(s) URL");
-	}
-}
-
 export function normalizeModelQuantization(value: string): string {
 	const normalized = value
 		.trim()
@@ -154,10 +133,6 @@ export const ModelSchema = z
 		quantization: z
 			.string()
 			.describe("Quantization format (e.g. '4bit', '8bit')"),
-		reference_url: z
-			.string()
-			.nullish()
-			.describe("Optional URL pointing to the model used for this run"),
 		format: z
 			.string()
 			.nullish()
@@ -168,9 +143,6 @@ export const ModelSchema = z
 	.refine((data) => {
 		data.name = data.name.trim();
 		if (!data.name) throw new Error("model name must not be empty");
-		if (data.reference_url) {
-			data.reference_url = normalizeModelReferenceUrl(data.reference_url);
-		}
 		data.quantization = normalizeModelQuantization(data.quantization);
 		if (data.format) {
 			data.format = data.format.trim() || null;
@@ -403,11 +375,6 @@ export const BenchmarkProtocolPhaseSchema = z
 			.describe(
 				"Whether stream_options.include_usage was requested for this phase",
 			),
-		connection_mode: z
-			.enum(["per_request", "persistent"])
-			.describe(
-				"Whether HTTP connections were reused across benchmark requests",
-			),
 		generation_parameters: GenerationParametersSchema.describe(
 			"Generation sampling parameters requested for this phase",
 		),
@@ -629,7 +596,6 @@ export const MetaSchema = z.object({
 	cached_ttft_warning: z
 		.boolean()
 		.describe("True when cached TTFT is close to cold TTFT"),
-	notes: z.string().nullish().describe("Optional notes from the contributor"),
 });
 
 export const BenchmarkResultSchema = z

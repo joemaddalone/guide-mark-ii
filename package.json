@@ -4,11 +4,19 @@
   "module": "src/index.ts",
   "bin": "src/cli.ts",
   "type": "module",
-  "private": true,
+  "homepage": "https://github.com/joemaddalone/guide-mark-ii#readme",
+  "bugs": {
+    "url": "https://github.com/joemaddalone/guide-mark-ii/issues"
+  },
+
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/joemaddalone/guide-mark-ii"
+  },
   "scripts": {
     "dev": "bun run --watch src/index.ts",
     "start": "bun run src/index.ts",
-    "build": "bun build ./src/index.ts --outdir ./dist --minify",
+    "build": "bun build ./src/index.ts --outdir ./dist --minify --target bun",
     "lint": "bunx biome check src/",
     "format": "bunx biome format src/",
     "test": "bun test",
