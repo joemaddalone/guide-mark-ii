@@ -1,3 +1,10 @@
+# [1.1.0](https://github.com/joemaddalone/guide-mark-ii/compare/v1.0.0...v1.1.0) (2026-07-19)
+
+
+### Features
+
+* marked terminal cli output ([b3f3fe1](https://github.com/joemaddalone/guide-mark-ii/commit/b3f3fe1ccec8855d22432cc69eb89c9f7177e0e1))
+
 # 1.0.0 (2026-07-19)
 
 
