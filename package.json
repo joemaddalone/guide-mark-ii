@@ -21,9 +21,9 @@
     "url": "git+https://github.com/joemaddalone/guide-mark-ii.git"
   },
   "scripts": {
-    "dev": "bun run --watch src/index.ts",
-    "start": "bun run src/index.ts",
-    "build": "bun build ./src/index.ts --outdir ./dist --minify --target node && printf '%s\n' '#!/usr/bin/env node' | cat - dist/index.js > dist/index.tmp && mv dist/index.tmp dist/index.js",
+    "dev": "bun run --watch src/cli.ts",
+    "start": "bun run src/cli.ts",
+    "build": "bun build ./src/cli.ts --outdir ./dist --minify --target node && mv dist/cli.js dist/index.js && printf '%s\n' '#!/usr/bin/env node' | cat - dist/index.js > dist/index.tmp && mv dist/index.tmp dist/index.js",
     "lint": "bunx biome check src/",
     "format": "bunx biome format src/",
     "test": "bun test",

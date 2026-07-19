@@ -7,13 +7,13 @@ TypeScript port of mlx-chronos benchmark suite for measuring LLM inference perfo
 - Measures throughput (tok/s), TTFT (cold + cached), RAM usage, and thermal state
 - Background monitoring during benchmark runs
 - Two profiles: baseline (fast) and sustained (throttling detection)
-- JSON and Markdown result reports
+- JSON and Markdown result reports with styled terminal output
 - HTTP retry with exponential backoff
 
-## Setup
+## Installation
 
 ```bash
-bun install
+npm install -g guide-mark-ii
 ```
 
 ## Usage
@@ -21,7 +21,7 @@ bun install
 Run a benchmark against a local inference server:
 
 ```bash
-bun run src/cli.ts run --url http://localhost:8000/v1 --model Qwen3.5-4B
+guide-mark-ii run --url http://localhost:8000/v1 --model Qwen3.5-4B
 ```
 
 ### Required Options
@@ -64,12 +64,12 @@ bun run src/cli.ts run --url http://localhost:8000/v1 --model Qwen3.5-4B
 
 Basic benchmark:
 ```bash
-bun run src/cli.ts run --url http://localhost:8000/v1 --model my-model
+guide-mark-ii run --url http://localhost:8000/v1 --model my-model
 ```
 
 Sustained profile with Markdown output:
 ```bash
-bun run src/cli.ts run \
+guide-mark-ii run \
   --url http://localhost:8000/v1 \
   --model my-model \
   --profile sustained \
@@ -78,7 +78,7 @@ bun run src/cli.ts run \
 
 Custom trials and cooldown:
 ```bash
-bun run src/cli.ts run \
+guide-mark-ii run \
   --url http://localhost:8000/v1 \
   --model my-model \
   --trials 10 \
@@ -89,14 +89,17 @@ bun run src/cli.ts run \
 
 Results are saved to `--output-dir` (default: `./results/local/`). JSON files contain full benchmark data including raw trial values, hardware info, thermal monitoring, and phase timings.
 
+When using `--format markdown` or `--format all`, the results are also rendered to the terminal with styled formatting.
+
 ## Development
 
 ```bash
-bun run dev          # Watch mode
-bun run build        # Build for production
-bun test             # Run tests
-bun run typecheck    # Type checking
-bun run lint         # Lint code
+bun install         # Install dependencies
+bun run dev         # Watch mode
+bun run build       # Build for production
+bun test            # Run tests
+bun run typecheck   # Type checking
+bun run lint        # Lint code
 ```
 
 ## Project Structure
