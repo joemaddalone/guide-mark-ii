@@ -10,6 +10,7 @@ import {
 	DECODE_TIMING_UNAVAILABLE,
 	type ThroughputMeasurement,
 } from "./stats";
+import { requestWithRetry } from "./httpRetry";
 
 const THROUGHPUT_STREAM_TIMEOUT_SECONDS = 60.0;
 const THROUGHPUT_TIMEOUT_SECONDS_PER_TOKEN = 0.5;
@@ -94,12 +95,7 @@ export abstract class BaseEngine {
 		return parts.join("; ");
 	}
 
-	protected responseBodyExcerpt(response: Response | null): string | null {
-		if (response === null) return null;
-		return null; // Must be async or called differently
-	}
-
-	protected async responseBodyExcerptAsync(
+	protected async responseBodyExcerpt(
 		response: Response | null,
 	): Promise<string | null> {
 		if (response === null) return null;
@@ -327,11 +323,15 @@ export abstract class BaseEngine {
 		const fetchFn = client?.fetch ?? fetch;
 
 		try {
-			const response = await fetchFn(url, {
-				method: "POST",
-				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify(payload),
-			});
+			const response = await requestWithRetry(
+				() =>
+					fetchFn(url, {
+						method: "POST",
+						headers: { "Content-Type": "application/json" },
+						body: JSON.stringify(payload),
+					}),
+				{ action },
+			);
 
 			if (!response.ok) {
 				const body = await response.text().catch(() => "");
@@ -371,54 +371,62 @@ export abstract class BaseEngine {
 				);
 			}
 
-			const decoder = new TextDecoder();
-			let buffer = "";
-			let streamDone = false;
-			const deadline = performance.now() + 30000;
+			try {
+				const decoder = new TextDecoder();
+				let buffer = "";
+				let streamDone = false;
+				const deadline = performance.now() + 30000;
 
-			while (!streamDone) {
-				if (performance.now() > deadline) {
-					throw new Error(
-						this.invalidResponseMessage(
-							action,
-							url,
-							"stream read timed out",
-							model,
-							requestModel,
-						),
-					);
-				}
-				const { done, value } = await reader.read();
-				if (done) break;
-				buffer += decoder.decode(value, { stream: true });
-				const lines = buffer.split("\n");
-				buffer = lines.pop() ?? "";
-
-				for (const line of lines) {
-					if (!line.startsWith("data:")) continue;
-					const data = line.slice(5).trim();
-					if (!data || data === "[DONE]") {
-						if (data === "[DONE]") streamDone = true;
-						continue;
+				while (!streamDone) {
+					if (performance.now() > deadline) {
+						throw new Error(
+							this.invalidResponseMessage(
+								action,
+								url,
+								"stream read timed out",
+								model,
+								requestModel,
+							),
+						);
 					}
-					try {
-						const chunk = JSON.parse(data) as Record<string, unknown>;
-						if (this.streamChunkHasContent(chunk)) {
-							return Math.round((performance.now() - start) * 1000) / 1000;
+					const { done, value } = await reader.read();
+					if (done) break;
+					buffer += decoder.decode(value, { stream: true });
+					const lines = buffer.split("\n");
+					buffer = lines.pop() ?? "";
+
+					for (const line of lines) {
+						if (!line.startsWith("data:")) continue;
+						const data = line.slice(5).trim();
+						if (!data || data === "[DONE]") {
+							if (data === "[DONE]") streamDone = true;
+							continue;
 						}
-					} catch {}
+						try {
+							const chunk = JSON.parse(data) as Record<string, unknown>;
+							if (this.streamChunkHasContent(chunk)) {
+								return Math.round((performance.now() - start) * 1000) / 1000;
+							}
+						} catch {}
+					}
+				}
+
+				throw new Error(
+					this.invalidResponseMessage(
+						action,
+						url,
+						"stream ended before a valid content token was received",
+						model,
+						requestModel,
+					),
+				);
+			} finally {
+				try {
+					reader.releaseLock();
+				} catch {
+					/* already released */
 				}
 			}
-
-			throw new Error(
-				this.invalidResponseMessage(
-					action,
-					url,
-					"stream ended before a valid content token was received",
-					model,
-					requestModel,
-				),
-			);
 		} catch (error) {
 			if (error instanceof Error && !error.message.includes(action)) {
 				throw new Error(
@@ -481,11 +489,15 @@ export abstract class BaseEngine {
 			nextProgressSampleAt = progressSampleIntervalTokens;
 
 			try {
-				const response = await fetchFn(url, {
-					method: "POST",
-					headers: { "Content-Type": "application/json" },
-					body: JSON.stringify(payload),
-				});
+				const response = await requestWithRetry(
+					() =>
+						fetchFn(url, {
+							method: "POST",
+							headers: { "Content-Type": "application/json" },
+							body: JSON.stringify(payload),
+						}),
+					{ action },
+				);
 
 				if (!response.ok) {
 					const errorBody = await response.text().catch(() => "");
@@ -537,65 +549,74 @@ export abstract class BaseEngine {
 						),
 					);
 
-				const decoder = new TextDecoder();
-				let buffer = "";
-				let streamDone = false;
-				const deadline =
-					performance.now() + this.throughputTimeout(maxTokens) * 1000;
+				try {
+					const decoder = new TextDecoder();
+					let buffer = "";
+					let streamDone = false;
+					const deadline =
+						performance.now() + this.throughputTimeout(maxTokens) * 1000;
 
-				while (!streamDone) {
-					if (performance.now() > deadline) {
-						throw new Error(
-							this.invalidResponseMessage(
-								action,
-								url,
-								"stream read timed out",
-								model,
-								requestModel,
-							),
-						);
-					}
-					const { done, value } = await reader.read();
-					if (done) break;
-					buffer += decoder.decode(value, { stream: true });
-					const lines = buffer.split("\n");
-					buffer = lines.pop() ?? "";
-
-					for (const line of lines) {
-						if (!line.startsWith("data:")) continue;
-						const rawChunk = line.slice(5).trim();
-						if (!rawChunk) continue;
-						if (rawChunk === "[DONE]") {
-							streamFinishedAt = performance.now();
-							streamDone = true;
-							break;
+					while (!streamDone) {
+						if (performance.now() > deadline) {
+							throw new Error(
+								this.invalidResponseMessage(
+									action,
+									url,
+									"stream read timed out",
+									model,
+									requestModel,
+								),
+							);
 						}
-						try {
-							const chunk = JSON.parse(rawChunk) as Record<string, unknown>;
-							if (typeof chunk !== "object" || chunk === null) continue;
-							const usageTokens = this.extractStreamUsageTokens(chunk);
-							if (usageTokens !== null) completionTokens = usageTokens;
-							if (this.streamChunkHasContent(chunk)) {
-								if (firstTokenAt === null) firstTokenAt = performance.now();
-								const text = this.extractStreamText(chunk);
-								if (text) {
-									completionTextParts.push(text);
-									if (nextProgressSampleAt !== undefined) {
-										const est =
-											this.estimatedCompletionWords(completionTextParts);
-										while (est >= nextProgressSampleAt) {
-											this.appendProgressSample(
-												progressSamples,
-												nextProgressSampleAt,
-												(performance.now() - start) / 1000,
-												TOKEN_COUNT_SOURCE_WORD_FALLBACK,
-											);
-											nextProgressSampleAt += progressSampleIntervalTokens ?? 0;
+						const { done, value } = await reader.read();
+						if (done) break;
+						buffer += decoder.decode(value, { stream: true });
+						const lines = buffer.split("\n");
+						buffer = lines.pop() ?? "";
+
+						for (const line of lines) {
+							if (!line.startsWith("data:")) continue;
+							const rawChunk = line.slice(5).trim();
+							if (!rawChunk) continue;
+							if (rawChunk === "[DONE]") {
+								streamFinishedAt = performance.now();
+								streamDone = true;
+								break;
+							}
+							try {
+								const chunk = JSON.parse(rawChunk) as Record<string, unknown>;
+								if (typeof chunk !== "object" || chunk === null) continue;
+								const usageTokens = this.extractStreamUsageTokens(chunk);
+								if (usageTokens !== null) completionTokens = usageTokens;
+								if (this.streamChunkHasContent(chunk)) {
+									if (firstTokenAt === null) firstTokenAt = performance.now();
+									const text = this.extractStreamText(chunk);
+									if (text) {
+										completionTextParts.push(text);
+										if (nextProgressSampleAt !== undefined) {
+											const est =
+												this.estimatedCompletionWords(completionTextParts);
+											while (est >= nextProgressSampleAt) {
+												this.appendProgressSample(
+													progressSamples,
+													nextProgressSampleAt,
+													(performance.now() - start) / 1000,
+													TOKEN_COUNT_SOURCE_WORD_FALLBACK,
+												);
+												nextProgressSampleAt +=
+													progressSampleIntervalTokens ?? 0;
+											}
 										}
 									}
 								}
-							}
-						} catch {}
+							} catch {}
+						}
+					}
+				} finally {
+					try {
+						reader.releaseLock();
+					} catch {
+						/* already released */
 					}
 				}
 				break;
